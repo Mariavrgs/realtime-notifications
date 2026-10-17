@@ -1,0 +1,52 @@
+services:
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 20
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    volumes:
+      - ./sql:/docker-entrypoint-initdb.d:ro
+    ports: ["5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      interval: 5s
+      retries: 30
+
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    ports: ["8025:8025"]  # caixa de entrada de teste em http://localhost:8025
+
+  api:
+    build: .
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    environment: &env
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://app:app@postgres:5432/app
+      SMTP_HOST: mailhog
+      SMTP_PORT: "1025"
+      REPORTS_DIR: /data/reports
+    volumes: ["reports:/data/reports"]
+    ports: ["8000:8000"]
+    depends_on:
+      redis: {condition: service_healthy}
+      postgres: {condition: service_healthy}
+
+  worker:
+    build: .
+    command: celery -A app.tasks.celery_app.celery_app worker -Q pdf,email,webhook -l info --concurrency 4
+    environment: *env
+    volumes: ["reports:/data/reports"]
+    depends_on:
+      redis: {condition: service_healthy}
+      postgres: {condition: service_healthy}
+
+volumes:
+  reports:
