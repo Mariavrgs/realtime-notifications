@@ -63,7 +63,7 @@ python bench/bench.py --path '/orders/summary-naive/{uid}'
 python bench/bench.py --path '/orders/summary/{uid}'
 ```
 
-Resultados na minha máquina (preencha com os seus números medidos):
+Resultados na minha máquina :
 
 | Endpoint | req/s | p50 (ms) | p95 (ms) |
 |---|---|---|---|
